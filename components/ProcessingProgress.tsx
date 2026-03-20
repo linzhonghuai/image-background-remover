@@ -1,10 +1,9 @@
 'use client';
 
-import React from 'react';
 import { Loader2, CheckCircle2, XCircle } from 'lucide-react';
 
 export interface ProcessingStatusProps {
-  status: 'processing' | 'completed' | 'error';
+  status: 'idle' | 'processing' | 'completed' | 'error';
   progress: number;
   error?: string | null;
 }
@@ -52,7 +51,7 @@ export default function ProcessingProgress({ status, progress, error }: Processi
           <p className="text-lg font-semibold text-gray-700 dark:text-gray-200">
             {STATUS_MESSAGES[status]}
           </p>
-          {status === 'loading' && (
+          {status === 'processing' && progress < 10 && (
             <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
               首次使用需要下载模型（约 50MB），请稍候...
             </p>
