@@ -34,6 +34,14 @@ export default function FAQSection() {
       question: t.faq.q6.question,
       answer: t.faq.q6.answer,
     },
+    {
+      question: t.faq.q7.question,
+      answer: t.faq.q7.answer,
+    },
+    {
+      question: t.faq.q8.question,
+      answer: t.faq.q8.answer,
+    },
   ];
 
   const toggleFAQ = (index: number) => {

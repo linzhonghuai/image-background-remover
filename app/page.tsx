@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useCallback, useEffect } from 'react';
-import { Sparkles, Zap, Heart } from 'lucide-react';
+import { Sparkles, Zap, Heart, AlertCircle } from 'lucide-react';
 import ImageUploader from '@/components/ImageUploader';
 import ProcessingProgress from '@/components/ProcessingProgress';
 import ImageResult from '@/components/ImageResult';
@@ -10,17 +10,26 @@ import BackgroundRemovalDemo from '@/components/BackgroundRemovalDemo';
 import BlogSection from '@/components/BlogSection';
 import FAQSection from '@/components/FAQSection';
 import PricingSection from '@/components/PricingSection';
+import QuotaDisplay from '@/components/QuotaDisplay';
+import UpgradeModal from '@/components/UpgradeModal';
 import { useBackgroundRemoval } from '@/lib/useBackgroundRemoval';
 import { useSession, login } from '@/lib/useSession';
 import LoginButton from '@/components/LoginButton';
 import LanguageSelector from '@/components/LanguageSelector';
 import { useLanguage } from '@/lib/i18n/useLanguage';
+import { canProcessImage, recordUsage, getUserQuota } from '@/lib/quota';
 
 export default function Home() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [backgroundType, setBackgroundType] = useState<BackgroundType>('transparent');
   const [backgroundValue, setBackgroundValue] = useState<string | undefined>();
   const [oauthHandled, setOauthHandled] = useState(false);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [quota, setQuota] = useState<{ used: number; total: number; plan: 'free' | 'pro' | 'business' }>({
+    used: 0,
+    total: 5,
+    plan: 'free',
+  });
   const { t } = useLanguage();
 
   const { user, loading, setSession } = useSession();
@@ -28,9 +37,36 @@ export default function Home() {
   const { status, progress, processedBlob, error, removeBackgroundFromImage, reset } =
     useBackgroundRemoval();
 
-  const handleImageSelect = useCallback((file: File) => {
+  // Track if usage has been recorded for current processing
+  const [usageRecorded, setUsageRecorded] = useState(false);
+
+  // Load quota on mount and when user changes
+  useEffect(() => {
+    getUserQuota().then(setQuota).catch(console.error);
+  }, [user]);
+
+  // Record usage when processing completes
+  useEffect(() => {
+    if (status === 'completed' && !usageRecorded) {
+      recordUsage().then(() => {
+        setUsageRecorded(true);
+        // Refresh quota
+        getUserQuota().then(setQuota).catch(console.error);
+      }).catch(console.error);
+    }
+  }, [status, usageRecorded]);
+
+  const handleImageSelect = useCallback(async (file: File) => {
+    // Check quota before processing
+    const check = await canProcessImage();
+    if (!check.canUse) {
+      setShowUpgradeModal(true);
+      return;
+    }
+
+    setUsageRecorded(false);
     setSelectedFile(file);
-    removeBackgroundFromImage(file);
+    await removeBackgroundFromImage(file);
   }, [removeBackgroundFromImage]);
 
   const handleReset = useCallback(() => {
@@ -38,6 +74,7 @@ export default function Home() {
     setSelectedFile(null);
     setBackgroundType('transparent');
     setBackgroundValue(undefined);
+    setUsageRecorded(false);
   }, [reset]);
 
   const handleBackgroundChange = useCallback((type: BackgroundType, value?: string) => {
@@ -165,6 +202,9 @@ export default function Home() {
           {/* Right Column - Background Options */}
           <div className="lg:col-span-1">
             <div className="sticky top-24 space-y-6">
+              {/* Quota Display */}
+              <QuotaDisplay used={quota.used} total={quota.total} plan={quota.plan} compact />
+
               {/* Background Selector */}
               {status === 'completed' && processedBlob && (
                 <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6">
@@ -257,6 +297,13 @@ export default function Home() {
           </div>
         </div>
       </footer>
+
+      {/* Upgrade Modal */}
+      <UpgradeModal
+        isOpen={showUpgradeModal}
+        onClose={() => setShowUpgradeModal(false)}
+        currentPlan={quota.plan}
+      />
     </div>
   );
 }
