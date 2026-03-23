@@ -1,0 +1,32 @@
+# https://www.robotstxt.org/robotstxt.html
+User-agent: *
+Allow: /
+
+# Disallow API routes (no index needed)
+Disallow: /api/
+Disallow: /functions/
+
+# Allow all static assets
+Allow: /public/
+Allow: /*.css
+Allow: /*.js
+Allow: /*.png
+Allow: /*.jpg
+Allow: /*.jpeg
+Allow: /*.webp
+Allow: /*.svg
+Allow: /*.ico
+
+# Sitemap
+Sitemap: https://purebgremover.com/sitemap.xml
+Sitemap: https://www.purebgremover.com/sitemap.xml
+
+# Popular crawlers
+User-agent: Googlebot
+Allow: /
+
+User-agent: Bingbot
+Allow: /
+
+# Crawl-delay for other crawlers
+Crawl-delay: 1

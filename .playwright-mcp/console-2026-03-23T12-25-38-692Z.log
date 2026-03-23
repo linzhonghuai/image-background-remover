@@ -1,0 +1,2 @@
+[    6318ms] [ERROR] Failed to load resource: the server responded with a status of 404 () @ https://purebgremover.com/icon-192.png:0
+[    6342ms] [WARNING] Error while trying to use the following icon from the Manifest: https://purebgremover.com/icon-192.png (Download error or resource isn't a valid image) @ https://purebgremover.com/:0
