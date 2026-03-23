@@ -7,6 +7,8 @@ import ProcessingProgress from '@/components/ProcessingProgress';
 import ImageResult from '@/components/ImageResult';
 import BackgroundSelector, { BackgroundType } from '@/components/BackgroundSelector';
 import BackgroundRemovalDemo from '@/components/BackgroundRemovalDemo';
+import BlogSection from '@/components/BlogSection';
+import FAQSection from '@/components/FAQSection';
 import { useBackgroundRemoval } from '@/lib/useBackgroundRemoval';
 import { useSession, login } from '@/lib/useSession';
 import LoginButton from '@/components/LoginButton';
@@ -235,6 +237,12 @@ export default function Home() {
 
       {/* Animated Demo Section */}
       <BackgroundRemovalDemo />
+
+      {/* Blog Section */}
+      <BlogSection />
+
+      {/* FAQ Section */}
+      <FAQSection />
 
       {/* Footer */}
       <footer className="border-t border-gray-200 dark:border-gray-800 bg-white/50 dark:bg-gray-900/50 backdrop-blur-sm mt-12">
