@@ -1,4 +1,4 @@
-// 配额管理系统 (使用 localStorage，适配静态导出)
+// 配额管理系统 (使用 Cloudflare D1 + Workers API，localStorage 作为降级方案)
 export interface UserQuota {
   used: number;
   total: number;
@@ -7,102 +7,87 @@ export interface UserQuota {
   isLoggedIn: boolean;
 }
 
-const QUOTA_KEY = 'image_remover_quota';
-const QUOTA_VERSION = 'v1';
-
-// 获取今日日期字符串
-function getTodayKey(): string {
-  const now = new Date();
-  return `${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}`;
-}
-
-// 获取本月日期字符串
-function getMonthKey(): string {
-  const now = new Date();
-  return `${now.getFullYear()}-${now.getMonth() + 1}`;
-}
-
-// 从 localStorage 获取配额数据
-function getStoredQuota(): { used: number; date: string } | null {
-  try {
-    const data = localStorage.getItem(QUOTA_KEY);
-    if (!data) return null;
-
-    const parsed = JSON.parse(data);
-    // 检查版本和日期
-    if (parsed.version !== QUOTA_VERSION) return null;
-
-    return parsed;
-  } catch (error) {
-    console.error('Failed to parse stored quota:', error);
-    return null;
-  }
-}
-
-// 保存配额数据到 localStorage
-function setStoredQuota(used: number, date: string): void {
-  try {
-    localStorage.setItem(QUOTA_KEY, JSON.stringify({
-      version: QUOTA_VERSION,
-      used,
-      date,
-    }));
-  } catch (error) {
-    console.error('Failed to store quota:', error);
-  }
-}
+const API_BASE = '/api'; // Cloudflare Workers 路径
+const QUOTA_KEY = 'image_remover_quota_fallback';
 
 // 获取用户配额
 export async function getUserQuota(): Promise<UserQuota> {
-  // 从 sessionStorage 检查登录状态
-  const sessionStr = sessionStorage.getItem('user_session');
-  const isLoggedIn = !!sessionStr;
-
-  // 根据登录状态设置不同的配额
-  const total = isLoggedIn ? 10 : 5; // 登录用户 10 次/月，未登录 5 次/天
-  const plan: UserQuota['plan'] = 'free';
-
-  // 获取存储的配额数据
-  const stored = getStoredQuota();
-  const todayKey = getTodayKey();
-  const monthKey = getMonthKey();
-
-  let used = 0;
-  let resetDate = new Date();
-
-  if (stored) {
-    // 检查是否需要重置
-    if (isLoggedIn) {
-      // 登录用户：按月重置
-      if (stored.date.startsWith(monthKey)) {
-        used = stored.used;
-      }
-      // 设置为下个月1号
-      resetDate = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1);
-    } else {
-      // 未登录用户：按天重置
-      if (stored.date === todayKey) {
-        used = stored.used;
-      }
-      // 设置为明天
-      resetDate = new Date();
-      resetDate.setDate(resetDate.getDate() + 1);
+  try {
+    const response = await fetch(`${API_BASE}/quota`);
+    if (response.ok) {
+      const data = await response.json();
+      return {
+        used: data.used,
+        total: data.total,
+        resetDate: new Date(data.resetDate),
+        plan: data.plan,
+        isLoggedIn: data.isLoggedIn,
+      };
     }
-  } else {
-    // 首次使用，设置重置时间
-    if (isLoggedIn) {
-      resetDate = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1);
-    } else {
-      resetDate = new Date();
-      resetDate.setDate(resetDate.getDate() + 1);
-    }
+  } catch (error) {
+    console.error('Failed to fetch quota from API, falling back to localStorage:', error);
   }
 
+  // 降级到 localStorage（API 失败时的备用方案）
+  return getLocalQuota();
+}
+
+// 从 localStorage 获取配额（降级方案）
+function getLocalQuota(): UserQuota {
+  const sessionStr = sessionStorage.getItem('user_session');
+  const isLoggedIn = !!sessionStr;
+  const total = isLoggedIn ? 10 : 5;
+
+  try {
+    const data = localStorage.getItem(QUOTA_KEY);
+    if (data) {
+      const parsed = JSON.parse(data);
+      const now = new Date();
+      const resetDate = new Date(parsed.resetDate);
+
+      // 检查是否需要重置
+      if (now >= resetDate) {
+        // 重置配额
+        const newResetDate = isLoggedIn
+          ? new Date(now.getFullYear(), now.getMonth() + 1, 1)
+          : new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+
+        localStorage.setItem(QUOTA_KEY, JSON.stringify({
+          used: 0,
+          resetDate: newResetDate.toISOString(),
+        }));
+
+        return {
+          used: 0,
+          total,
+          resetDate: newResetDate,
+          plan: 'free',
+          isLoggedIn,
+        };
+      }
+
+      return {
+        used: parsed.used || 0,
+        total,
+        resetDate,
+        plan: 'free',
+        isLoggedIn,
+      };
+    }
+  } catch (error) {
+    console.error('Failed to parse local quota:', error);
+  }
+
+  // 默认配额
+  const resetDate = isLoggedIn
+    ? new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1)
+    : new Date(new Date().setDate(new Date().getDate() + 1));
+
   return {
-    used,
+    used: 0,
     total,
     resetDate,
-    plan,
+    plan: 'free',
     isLoggedIn,
   };
 }
@@ -127,34 +112,52 @@ export async function canProcessImage(): Promise<{ canUse: boolean; reason?: str
 
 // 记录使用
 export async function recordUsage(): Promise<void> {
+  try {
+    const response = await fetch(`${API_BASE}/usage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    });
+
+    if (response.ok) {
+      return; // API 记录成功
+    }
+  } catch (error) {
+    console.error('Failed to record usage via API, falling back to localStorage:', error);
+  }
+
+  // 降级到 localStorage 记录
   const quota = await getUserQuota();
   const isLoggedIn = quota.isLoggedIn;
 
-  const stored = getStoredQuota();
-  const todayKey = getTodayKey();
-  const monthKey = getMonthKey();
+  try {
+    const data = localStorage.getItem(QUOTA_KEY);
+    const now = new Date();
+    let used = 1;
+    let resetDate: Date;
 
-  let newUsed = (stored?.used || 0) + 1;
-  let newDate = isLoggedIn ? monthKey : todayKey;
-
-  // 检查是否需要重置计数
-  if (stored) {
     if (isLoggedIn) {
-      // 登录用户：检查是否跨月
-      if (!stored.date.startsWith(monthKey)) {
-        newUsed = 1;
-        newDate = monthKey;
-      }
+      resetDate = new Date(now.getFullYear(), now.getMonth() + 1, 1);
     } else {
-      // 未登录用户：检查是否跨天
-      if (stored.date !== todayKey) {
-        newUsed = 1;
-        newDate = todayKey;
+      resetDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+    }
+
+    if (data) {
+      const parsed = JSON.parse(data);
+      const storedReset = new Date(parsed.resetDate);
+
+      if (now < storedReset) {
+        used = (parsed.used || 0) + 1;
+        resetDate = storedReset;
       }
     }
-  }
 
-  setStoredQuota(newUsed, newDate);
+    localStorage.setItem(QUOTA_KEY, JSON.stringify({
+      used,
+      resetDate: resetDate.toISOString(),
+    }));
+  } catch (error) {
+    console.error('Failed to record usage to localStorage:', error);
+  }
 }
 
 // 获取套餐配额配置

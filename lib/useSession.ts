@@ -69,13 +69,43 @@ export async function login(token: string): Promise<User> {
 
   const data = await response.json();
 
-  // 保存会话到 localStorage
+  // 保存会话到 localStorage 和 sessionStorage
   localStorage.setItem('user_session', JSON.stringify(data.user));
+  sessionStorage.setItem('user_session', JSON.stringify(data.user));
+
+  // 同步用户到 D1 数据库（异步，不阻塞登录流程）
+  syncUserToDatabase(data.user).catch(console.error);
 
   // 追踪登录事件
   analytics.login();
 
   return data.user;
+}
+
+// 同步用户到 D1 数据库
+async function syncUserToDatabase(user: User): Promise<void> {
+  try {
+    // 从 JWT token 中提取 google_id
+    const sessionStr = localStorage.getItem('user_session');
+    if (!sessionStr) return;
+
+    const session = JSON.parse(sessionStr);
+
+    // 调用 Worker API 同步用户
+    await fetch('/api/sync-user', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        googleId: session.sub || session.userId || user.id,
+        email: user.email,
+        name: user.name,
+        picture: user.picture,
+      }),
+    });
+  } catch (error) {
+    console.error('Failed to sync user to database:', error);
+    // 静默失败，不影响用户体验
+  }
 }
 
 // 登出
@@ -84,6 +114,7 @@ export async function logout(): Promise<void> {
 
   // 清除本地会话
   localStorage.removeItem('user_session');
+  sessionStorage.removeItem('user_session');
 
   // 追踪登出事件
   analytics.logout();
