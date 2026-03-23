@@ -9,6 +9,7 @@ import BackgroundSelector, { BackgroundType } from '@/components/BackgroundSelec
 import BackgroundRemovalDemo from '@/components/BackgroundRemovalDemo';
 import BlogSection from '@/components/BlogSection';
 import FAQSection from '@/components/FAQSection';
+import PricingSection from '@/components/PricingSection';
 import { useBackgroundRemoval } from '@/lib/useBackgroundRemoval';
 import { useSession, login } from '@/lib/useSession';
 import LoginButton from '@/components/LoginButton';
@@ -243,6 +244,9 @@ export default function Home() {
 
       {/* FAQ Section */}
       <FAQSection />
+
+      {/* Pricing Section */}
+      <PricingSection />
 
       {/* Footer */}
       <footer className="border-t border-gray-200 dark:border-gray-800 bg-white/50 dark:bg-gray-900/50 backdrop-blur-sm mt-12">
