@@ -10,6 +10,7 @@ export default function BlogSection() {
 
   const articles = [
     {
+      slug: 'background-removal-ecommerce',
       title: t.blog.article1.title,
       excerpt: t.blog.article1.excerpt,
       date: t.blog.article1.date,
@@ -18,6 +19,7 @@ export default function BlogSection() {
       image: 'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=600&h=400&fit=crop',
     },
     {
+      slug: 'design-perfect-ads',
       title: t.blog.article2.title,
       excerpt: t.blog.article2.excerpt,
       date: t.blog.article2.date,
@@ -26,6 +28,7 @@ export default function BlogSection() {
       image: 'https://images.unsplash.com/photo-1561070791-2526d30994b5?w=600&h=400&fit=crop',
     },
     {
+      slug: 'ai-background-removal-technology',
       title: t.blog.article3.title,
       excerpt: t.blog.article3.excerpt,
       date: t.blog.article3.date,
@@ -99,7 +102,7 @@ export default function BlogSection() {
 
                 {/* Read More Link */}
                 <a
-                  href="#"
+                  href={`/blog/${article.slug}`}
                   className="inline-flex items-center gap-2 text-blue-600 dark:text-blue-400 font-semibold hover:gap-3 transition-all"
                 >
                   {article.readMore}
