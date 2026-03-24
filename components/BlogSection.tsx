@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Calendar, FolderOpen, ArrowRight } from 'lucide-react';
+import { Calendar, FolderOpen } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n/useLanguage';
 
 export default function BlogSection() {
@@ -68,8 +68,8 @@ export default function BlogSection() {
               transition={{ duration: 0.6, delay: index * 0.1 }}
               className="bg-gray-50 dark:bg-gray-800 rounded-2xl overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300 group"
             >
-              {/* Image */}
-              <div className="relative h-48 overflow-hidden">
+              {/* Image - Clickable */}
+              <a href={`/blog/${article.slug}`} className="relative h-48 overflow-hidden block">
                 <img
                   src={article.image}
                   alt={article.title}
@@ -80,7 +80,7 @@ export default function BlogSection() {
                     {article.category}
                   </span>
                 </div>
-              </div>
+              </a>
 
               {/* Content */}
               <div className="p-6">
@@ -90,24 +90,17 @@ export default function BlogSection() {
                   <time dateTime={article.date}>{article.date}</time>
                 </div>
 
-                {/* Title */}
-                <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-3 line-clamp-2 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                  {article.title}
-                </h3>
+                {/* Title - Clickable */}
+                <a href={`/blog/${article.slug}`}>
+                  <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-3 line-clamp-2 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors cursor-pointer">
+                    {article.title}
+                  </h3>
+                </a>
 
                 {/* Excerpt */}
-                <p className="text-gray-600 dark:text-gray-400 mb-4 line-clamp-3">
+                <p className="text-gray-600 dark:text-gray-400 line-clamp-3">
                   {article.excerpt}
                 </p>
-
-                {/* Read More Link */}
-                <a
-                  href={`/blog/${article.slug}`}
-                  className="inline-flex items-center gap-2 text-blue-600 dark:text-blue-400 font-semibold hover:gap-3 transition-all"
-                >
-                  {article.readMore}
-                  <ArrowRight className="w-4 h-4" />
-                </a>
               </div>
             </motion.article>
           ))}
